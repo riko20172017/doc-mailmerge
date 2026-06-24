@@ -1,13 +1,20 @@
 from openpyxl import load_workbook
-from mailmerge import MailMerge
+from mailmerge import MailMerge, MailMergeOptions, OptionAutoUpdateFields, OptionKeepFields
 import qrcode
 from io import BytesIO
 import tempfile
 import os
 from PIL import Image
+from pathlib import Path
 
+mailmerge_options = MailMergeOptions(
+    remove_empty_tables=False,
+    auto_update_fields_on_open=OptionAutoUpdateFields.ALWAYS,
+    # keep_fields=OptionKeepFields.NONE,
+    # merge_if_fields=True,
+    table_rows_replace_mode=False)
 
-with MailMerge('cover.docx') as document:
+with MailMerge('cover.docx', options=mailmerge_options) as document:
     print(document.get_merge_fields())
     # document.merge(Регистр_номер='2222',
     #            field2='Can be used for merging docx documents')
@@ -28,8 +35,8 @@ with MailMerge('cover.docx') as document:
         filename = f'img/qr_{i}.png'
         qr.save(filename)
         diploms.append({
-            "Фамилия": first, 
-            "Имя": middle, 
+            "Фамилия": first,
+            "Имя": middle,
             "Отчество": last,
             "Регистр_номер": reg,
             "Решение_госуд_Экз_комисии": "17 июня 2026 года",
@@ -38,9 +45,10 @@ with MailMerge('cover.docx') as document:
             "Дата_выдачи": "01 июля 2026 года",
             "Специальность": "09.02.07 Информационные системы и программирование",
             "Красный": "Нет",
-            "file": os.path.abspath(filename)
-            })
+            "file": Path(filename).absolute().as_posix()
+        })
         # print(f"{fio[0]}")
+        print(diploms)
     document.merge_pages(diploms)
     document.write('output.docx')
 
@@ -56,13 +64,13 @@ with MailMerge('cover.docx') as document:
         )
         qr.add_data(data)
         qr.make(fit=True)
-        
+
         # Создаем изображение
         img = qr.make_image(fill_color="black", back_color="white")
-        
+
         # Конвертируем в bytes
         img_bytes = BytesIO()
         img.save(img_bytes, format='PNG')
         img_bytes.seek(0)
-    
+
         return img_bytes.read()
