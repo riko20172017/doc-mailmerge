@@ -6,6 +6,19 @@ import tempfile
 import os
 from PIL import Image
 from pathlib import Path
+import warnings
+from docx import Document
+from docx.oxml.ns import qn
+from lxml import etree
+import copy
+
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
+
+def getQrPath(first, middle, i):
+        qr = qrcode.make(f"{first} {middle}")
+        filename = f'img/qr_{i}.png'
+        qr.save(filename)
+        return Path(filename).absolute().as_posix()
 
 mailmerge_options = MailMergeOptions(
     remove_empty_tables=False,
@@ -15,25 +28,38 @@ mailmerge_options = MailMergeOptions(
     table_rows_replace_mode=False)
 
 with MailMerge('cover.docx', options=mailmerge_options) as document:
-    print(document.get_merge_fields())
-    # document.merge(Регистр_номер='2222',
-    #            field2='Can be used for merging docx documents')
-    diploms = []
-    # lisst.append({"Регистр_номер":'2222'})
-    # lisst.append({"Регистр_номер":'3333'})
-    # document.merge_pages(lisst)
-    # document.write('output.docx')
+    # print(document.get_merge_fields())
 
+    diploms = []
     wb = load_workbook('db.xlsx')
-    ws = wb["ИП-1 д"]
+    ws_data = wb["ИП-1 д"]
+    ws_mark = wb["ИП-1 о"]
+
+    subjects = ""
+    hours = ""
+
+    for row in ws_mark['A3:B71']:
+         subjects += row[0].value + "\n"
+         hours += str(row[1].value)
 
 # Вывод колонок A и C
-    for i, row in enumerate(ws.iter_rows(min_row=2, max_row=20, min_col=1, max_col=7, values_only=True)):
-        first, middle, last = row[0].split(' ')
+    for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=7, values_only=True)):
+        
+        fio = row[0]
+        if (fio == None): break
+
+        first, middle, last = fio.split(' ')
+        red = row[6]
         reg = row[1]
-        qr = qrcode.make(f"{first} {middle}")
-        filename = f'img/qr_{i}.png'
-        qr.save(filename)
+        file = getQrPath(first, middle, i)
+
+        col = i+3
+        marks = ""
+        for i, col in enumerate(ws_mark.iter_cols(min_col=col, max_col=col, min_row=3, max_row=100, values_only=True)):
+            for i, mark in enumerate(col):
+                if mark == None: continue
+                marks += str(mark)
+
         diploms.append({
             "Фамилия": first,
             "Имя": middle,
@@ -44,33 +70,22 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
             "Квалификация": "Программист",
             "Дата_выдачи": "01 июля 2026 года",
             "Специальность": "09.02.07 Информационные системы и программирование",
-            "Красный": "Нет",
-            "file": Path(filename).absolute().as_posix()
+            "Красный": red,
+            "file": file,
+            "Дисциплины": subjects,
+            "Часы": hours,
+            "оценки": marks
         })
-        # print(f"{fio[0]}")
-        print(diploms)
-    document.merge_pages(diploms)
+
+    document.merge_templates(diploms, separator='page_break')
     document.write('output.docx')
 
-    def generate_qr_code(data, size=300):
-        """
-        Генерирует QR-код и возвращает как bytes
-        """
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(data)
-        qr.make(fit=True)
 
-        # Создаем изображение
-        img = qr.make_image(fill_color="black", back_color="white")
+doc = Document('output.docx')
 
-        # Конвертируем в bytes
-        img_bytes = BytesIO()
-        img.save(img_bytes, format='PNG')
-        img_bytes.seek(0)
-
-        return img_bytes.read()
+for paragraph in doc.paragraphs:
+    for run in paragraph.runs:
+        # Находим все разрывы страниц
+        for br in run._element.findall(qn('w:br')):
+            if br.get(qn('w:type')) == 'page':
+                run._element.remove(br)
