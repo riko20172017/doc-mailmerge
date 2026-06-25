@@ -14,11 +14,13 @@ import copy
 
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
+
 def getQrPath(first, middle, i):
-        qr = qrcode.make(f"{first} {middle}")
-        filename = f'img/qr_{i}.png'
-        qr.save(filename)
-        return Path(filename).absolute().as_posix()
+    qr = qrcode.make(f"{first} {middle}")
+    filename = f'img/qr_{i}.png'
+    qr.save(filename)
+    return Path(filename).absolute().as_posix()
+
 
 mailmerge_options = MailMergeOptions(
     remove_empty_tables=False,
@@ -35,18 +37,19 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
     ws_data = wb["ИП-1 д"]
     ws_mark = wb["ИП-1 о"]
 
-    subjects = ""
+    subjects = []
     hours = ""
 
     for row in ws_mark['A3:B71']:
-         subjects += row[0].value + "\n"
-         hours += str(row[1].value)
+        subjects.append(row[0].value)
+        hours += str(row[1].value)
 
 # Вывод колонок A и C
     for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=7, values_only=True)):
-        
+
         fio = row[0]
-        if (fio == None): break
+        if (fio == None):
+            break
 
         first, middle, last = fio.split(' ')
         red = row[6]
@@ -57,7 +60,8 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
         marks = ""
         for i, col in enumerate(ws_mark.iter_cols(min_col=col, max_col=col, min_row=3, max_row=100, values_only=True)):
             for i, mark in enumerate(col):
-                if mark == None: continue
+                if mark == None:
+                    continue
                 marks += str(mark)
 
         diploms.append({
@@ -72,7 +76,7 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
             "Специальность": "09.02.07 Информационные системы и программирование",
             "Красный": red,
             "file": file,
-            "Дисциплины": subjects,
+            # "Дисциплины": subjects,
             "Часы": hours,
             "оценки": marks
         })
@@ -80,12 +84,36 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
     document.merge_templates(diploms, separator='page_break')
     document.write('output.docx')
 
+    doc = Document('output.docx')
 
-doc = Document('output.docx')
+    # Просто все параграфы документа
+    for paragraph in doc.paragraphs:
+        for run in paragraph.runs:
+            print(paragraph.runs[0].text)
+            if "предметы" in run.text:
+                # Очищаем текущий run
+                run.text = ''
 
-for paragraph in doc.paragraphs:
-    for run in paragraph.runs:
-        # Находим все разрывы страниц
-        for br in run._element.findall(qn('w:br')):
-            if br.get(qn('w:type')) == 'page':
-                run._element.remove(br)
+                # Получаем родителя и позицию
+                parent = paragraph._element.getparent()
+                index = list(parent).index(paragraph._element)
+
+                # Вставляем новые абзацы
+                for i, text in enumerate(subjects):
+                    new_para = doc.add_paragraph(text)
+                    parent.insert(index + 1 + i, new_para._element)
+
+                break
+    doc.save('output.docx')
+
+
+# doc = Document('output.docx')
+
+# for paragraph in doc.paragraphs:
+#     for run in paragraph.runs:
+#         # Находим все разрывы страниц
+#         for br in run._element.findall(qn('w:br')):
+#             if br.get(qn('w:type')) == 'page':
+#                 run._element.remove(br)
+
+# doc.save('output.docx')

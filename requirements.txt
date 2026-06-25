@@ -1,0 +1,7 @@
+openpyxl 
+mailmerge 
+qrcode
+pathlib 
+docx
+lxml
+python-docx
