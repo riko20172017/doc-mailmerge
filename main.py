@@ -37,12 +37,25 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
     ws_data = wb["ИП-1 д"]
     ws_mark = wb["ИП-1 о"]
 
-    subjects = []
+    subjects = ""
     hours = ""
+    separator = ""
+    line_breaks = []
 
-    for row in ws_mark['A3:B71']:
-        subjects.append(row[0].value)
-        hours += str(row[1].value)
+
+    for i, row in enumerate(ws_mark['A3:B71']):
+        s, h = row
+        separator = "*"
+        subject = str(s.value)
+        hour = str(h.value)
+        
+        subjects += subject + separator
+       
+        if len(subject) > 90: 
+            separator = "**"
+            line_breaks.append(i)
+        
+        hours += hour + separator
 
 # Вывод колонок A и C
     for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=7, values_only=True)):
@@ -58,11 +71,15 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
 
         col = i+3
         marks = ""
-        for i, col in enumerate(ws_mark.iter_cols(min_col=col, max_col=col, min_row=3, max_row=100, values_only=True)):
+        for i, col in enumerate(ws_mark.iter_cols(min_col=0, max_col=col, min_row=3, max_row=100, values_only=True)):
             for i, mark in enumerate(col):
                 if mark == None:
                     continue
-                marks += str(mark)
+                if i in line_breaks: 
+                    separator = "**"
+                else:
+                    separator = "*"
+                marks += str(mark) + separator
 
         diploms.append({
             "Фамилия": first,
@@ -76,7 +93,7 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
             "Специальность": "09.02.07 Информационные системы и программирование",
             "Красный": red,
             "file": file,
-            # "Дисциплины": subjects,
+            "Дисциплины": subjects,
             "Часы": hours,
             "оценки": marks
         })
@@ -85,26 +102,6 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
     document.write('output.docx')
 
     doc = Document('output.docx')
-
-    # Просто все параграфы документа
-    for paragraph in doc.paragraphs:
-        for run in paragraph.runs:
-            print(paragraph.runs[0].text)
-            if "предметы" in run.text:
-                # Очищаем текущий run
-                run.text = ''
-
-                # Получаем родителя и позицию
-                parent = paragraph._element.getparent()
-                index = list(parent).index(paragraph._element)
-
-                # Вставляем новые абзацы
-                for i, text in enumerate(subjects):
-                    new_para = doc.add_paragraph(text)
-                    parent.insert(index + 1 + i, new_para._element)
-
-                break
-    doc.save('output.docx')
 
 
 # doc = Document('output.docx')
