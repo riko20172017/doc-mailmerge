@@ -13,8 +13,37 @@ from lxml import etree
 import copy
 from datetime import datetime
 import locale
+import re
 
 warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
+
+def convertMarktoWord(mark):
+    match mark:
+        case "5":
+            return "отлично"
+        case "4":
+            return "хорошо"
+        case "3":
+            return "удовлетворительно"
+        case "x":
+            return "x"
+        case _:
+            return mark
+
+
+def fix_encoding(text):
+    """Исправляет кодировку Windows-1251"""
+    if not text:
+        return ""
+    
+    # Если строка содержит последовательности вида РўРµСЃР»РµРЅРєРѕ
+    if re.search(r'Р[А-Я]', str(text)):
+        try:
+            # Пробуем декодировать из Windows-1251
+            return str(text).encode('latin-1').decode('windows-1251')
+        except:
+            return str(text)
+    return str(text)
 
 
 def format_date_ru(date_str):
@@ -32,14 +61,16 @@ def format_date_ru(date_str):
 
 
 def get_srok(attestat, common_data):
-    if attestat == "аттестат об основном общем образовании":
+    if attestat == "Аттестат об основном общем образовании":
         return common_data["srok9"]
     else:
         return common_data["srok11"]
 
 
-def getQrPath(first, middle, i):
-    qr = qrcode.make(f"{first} {middle}")
+def getQrPath(i, fio, data_vidachi, seria, nomer, demo_kod, demo_type, max_point, demo_point):
+    demo_result = "результат: " + demo_point + " из " + str(max_point) + " баллов"
+    qr_path = " | ".join([fio, data_vidachi, seria  + " " +nomer, demo_type, demo_kod, demo_result ])
+    qr = qrcode.make(fix_encoding(qr_path))
     filename = f'img/qr_{i}.png'
     qr.save(filename)
     return Path(filename).absolute().as_posix()
@@ -76,21 +107,22 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
                 "srok9": row[4],
                 "srok11": row[5],
                 "vidacha": row[6],
-                "qualification" : row[7]
+                "qualification" : row[7],
+                "demo_kod": row[8],
+                "demo_type": row[9],
+                "demo_max_point": row[10]
             }
             # Вывод колонок A и C
-    for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=7, values_only=True)):
+    for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=9, values_only=True)):
         fio = row[0]
-        if (fio == None):
+        if (fio == None): # Если дойти до пустой строки, то остановить цикл
             break
 
-        print(format_date_ru(row[2]))
         first, middle, last = fio.split(' ')
         dt_obj = row[2]
         birthdate = format_date_ru(row[2])
-        red = row[6]
+        red = row[5]
         reg = row[1]
-        file = getQrPath(first, middle, i)
         attestat_type = str(row[3])
         attestat_year = str(row[4])
         pred_document = attestat_type + ", " + attestat_year + " года"
@@ -99,6 +131,9 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
         speciality = common_data["speciality"]
         predsedatel = common_data["predsedatel"]
         reshenie = format_date_ru(common_data["reshenie"])
+        tema_vkr = row[6]
+        seria = str(row[7])
+        nomer = str(row[8])
 
         subjects = ""
         hours = ""
@@ -120,9 +155,23 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
 
             subject = str(subject)
             hour = str(hour)
-            mark = str(mark)
+            mark = str(mark).replace(".",",")
+
+            mark = convertMarktoWord(mark) # Преобразовать числовые оценки в "отлично", "хорошо" и тд.
+
+            if subject == common_data["demo_kod"]:
+                demo_point = mark
 
             separator = "*"
+
+            if "ВСЕГО часов" in subject or "В том числе аудиторных:" in subject:
+                hour9, hour11 = hour.split("|")
+                if attestat_type == "Аттестат о среднем общем образовании":
+                    hour = hour11
+                else:
+                    hour = hour9
+            
+
 
             if ("Курсовая" in subject):
                 kursovie_subjects += subject + separator
@@ -135,6 +184,10 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
 
                 hours += hour + separator
                 marks += mark + separator
+        
+        subjects += tema_vkr
+
+        file = getQrPath(i, fio, common_data["vidacha"], seria, nomer, common_data["demo_kod"], common_data["demo_type"], common_data["demo_max_point"], demo_point)
 
         diploms.append({
             "Фамилия": first,
@@ -160,19 +213,9 @@ with MailMerge('cover.docx', options=mailmerge_options) as document:
 
         })
 
-    document.merge_templates(diploms, separator='page_break')
+    document.merge_templates(diploms, separator='continuous_section')
     document.write('output.docx')
 
-    # doc = Document('output.docx')
+    document = Document('output.docx')
 
-
-doc = Document('output.docx')
-
-for paragraph in doc.paragraphs:
-    for run in paragraph.runs:
-        # Находим все разрывы страниц
-        for br in run._element.findall(qn('w:br')):
-            if br.get(qn('w:type')) == 'page':
-                run._element.remove(br)
-
-doc.save('output.docx')
+document.save('output.docx')
