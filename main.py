@@ -84,138 +84,136 @@ mailmerge_options = MailMergeOptions(
     table_rows_replace_mode=False)
 
 
-with MailMerge('cover.docx', options=mailmerge_options) as document:
-    # print(document.get_merge_fields())
+data_vidachi = "01 июля 2026 года"
+gruppa = "ИП-1"
+diploms = []
+wb = load_workbook(r'C:\Users\ganz\OneDrive\Документы\ведомости оценок.xlsx')
+common = load_workbook('utils.xlsx')
+ws_common = common["data"]
+ws_data = wb[gruppa + " д"]
+ws_mark = wb[gruppa + " о"]
+common_data = {}
 
-    data_vidachi = "01 июля 2026 года"
-    gruppa = "ИП-1"
-    diploms = []
-    wb = load_workbook(r'C:\Users\ganz\OneDrive\Документы\ведомости оценок.xlsx')
-    common = load_workbook('utils.xlsx')
-    ws_common = common["data"]
-    ws_data = wb[gruppa + " д"]
-    ws_mark = wb[gruppa + " о"]
-    common_data = {}
+for row in ws_common.values:
+    grupp_name = row[0]
+    if grupp_name == gruppa:
+        common_data = {
+            "speciality": row[1],
+            "reshenie": row[2],
+            "predsedatel": row[3],
+            "srok9": row[4],
+            "srok11": row[5],
+            "vidacha": row[6],
+            "qualification" : row[7],
+            "demo_kod": row[8],
+            "demo_type": row[9],
+            "demo_max_point": row[10]
+        }
+        # Вывод колонок A и C
+for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=9, values_only=True)):
+    fio = row[0]
+    if (fio == None): # Если дойти до пустой строки, то остановить цикл
+        break
 
-    for row in ws_common.values:
-        grupp_name = row[0]
-        if grupp_name == gruppa:
-            common_data = {
-                "speciality": row[1],
-                "reshenie": row[2],
-                "predsedatel": row[3],
-                "srok9": row[4],
-                "srok11": row[5],
-                "vidacha": row[6],
-                "qualification" : row[7],
-                "demo_kod": row[8],
-                "demo_type": row[9],
-                "demo_max_point": row[10]
-            }
-            # Вывод колонок A и C
-    for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=9, values_only=True)):
-        fio = row[0]
-        if (fio == None): # Если дойти до пустой строки, то остановить цикл
+    first, middle, last = fio.split(' ')
+    dt_obj = row[2]
+    birthdate = format_date_ru(row[2])
+    red = row[5]
+    reg = row[1]
+    attestat_type = str(row[3])
+    attestat_year = str(row[4])
+    pred_document = attestat_type + ", " + attestat_year + " года"
+    srok = get_srok(attestat_type, common_data)
+    qualification = common_data["qualification"]
+    speciality = common_data["speciality"]
+    predsedatel = common_data["predsedatel"]
+    reshenie = format_date_ru(common_data["reshenie"])
+    tema_vkr = row[6]
+    seria = str(row[7])
+    nomer = str(row[8])
+
+    subjects = ""
+    hours = ""
+    marks = ""
+
+    kursovie_subjects = ""
+    kursovie_marks = ""
+
+    student_col = i+3
+    for mark_col in ws_mark.iter_rows(min_row=3, max_row=100, min_col=0, max_col=student_col, values_only=True):
+        subject = mark_col[0]
+        hour = mark_col[1]
+        mark = mark_col[student_col-1]
+
+        if subject == None:
             break
+        if mark == None:
+            continue
 
-        first, middle, last = fio.split(' ')
-        dt_obj = row[2]
-        birthdate = format_date_ru(row[2])
-        red = row[5]
-        reg = row[1]
-        attestat_type = str(row[3])
-        attestat_year = str(row[4])
-        pred_document = attestat_type + ", " + attestat_year + " года"
-        srok = get_srok(attestat_type, common_data)
-        qualification = common_data["qualification"]
-        speciality = common_data["speciality"]
-        predsedatel = common_data["predsedatel"]
-        reshenie = format_date_ru(common_data["reshenie"])
-        tema_vkr = row[6]
-        seria = str(row[7])
-        nomer = str(row[8])
+        subject = str(subject)
+        hour = str(hour)
+        mark = str(mark).replace(".",",")
 
-        subjects = ""
-        hours = ""
-        marks = ""
+        mark = convertMarktoWord(mark) # Преобразовать числовые оценки в "отлично", "хорошо" и тд.
 
-        kursovie_subjects = ""
-        kursovie_marks = ""
+        if subject == common_data["demo_kod"]:
+            demo_point = mark
 
-        student_col = i+3
-        for mark_col in ws_mark.iter_rows(min_row=3, max_row=100, min_col=0, max_col=student_col, values_only=True):
-            subject = mark_col[0]
-            hour = mark_col[1]
-            mark = mark_col[student_col-1]
+        separator = "*"
 
-            if subject == None:
-                break
-            if mark == None:
-                continue
-
-            subject = str(subject)
-            hour = str(hour)
-            mark = str(mark).replace(".",",")
-
-            mark = convertMarktoWord(mark) # Преобразовать числовые оценки в "отлично", "хорошо" и тд.
-
-            if subject == common_data["demo_kod"]:
-                demo_point = mark
-
-            separator = "*"
-
-            if "ВСЕГО часов" in subject or "В том числе аудиторных:" in subject:
-                hour9, hour11 = hour.split("|")
-                if attestat_type == "Аттестат о среднем общем образовании":
-                    hour = hour11
-                else:
-                    hour = hour9
-            
-
-
-            if ("Курсовая" in subject):
-                kursovie_subjects += subject + separator
-                kursovie_marks += mark + separator
+        if "ВСЕГО часов" in subject or "В том числе аудиторных:" in subject:
+            hour9, hour11 = hour.split("|")
+            if attestat_type == "Аттестат о среднем общем образовании":
+                hour = hour11
             else:
-                subjects += subject + separator
-
-                if len(subject) >= 90:
-                    separator = "**"
-
-                hours += hour + separator
-                marks += mark + separator
+                hour = hour9
         
-        subjects += tema_vkr
 
-        file = getQrPath(i, fio, common_data["vidacha"], seria, nomer, common_data["demo_kod"], common_data["demo_type"], common_data["demo_max_point"], demo_point)
 
-        diploms.append({
-            "Фамилия": first,
-            "Имя": middle,
-            "Отчество": last,
-            "Регистр_номер": reg,
-            "число_месяцполностью_год__рождения": birthdate,
-            "Решение_госуд_Экз_комисии": reshenie,
-            "Председатель": predsedatel,
-            "Дата_выдачи": data_vidachi,
-            "Специальность": speciality,
-            "Красный": red,
-            "file": file,
-            "Дисциплины": subjects,
-            "Часы": hours,
-            "оценки": marks,
-            "Предыдущий_документ": pred_document,
-            "срок": srok,
-            "Квалификация": qualification,
-            "Специальность": speciality,
-            "курсовые": kursovie_subjects,
-            "оценка_курсовая": kursovie_marks
+        if ("Курсовая" in subject):
+            kursovie_subjects += subject + separator
+            kursovie_marks += mark + separator
+        else:
+            subjects += subject + separator
 
-        })
+            if len(subject) >= 90:
+                separator = "**"
 
+            hours += hour + separator
+            marks += mark + separator
+    
+    subjects += tema_vkr
+
+    file = getQrPath(i, fio, common_data["vidacha"], seria, nomer, common_data["demo_kod"], common_data["demo_type"], common_data["demo_max_point"], demo_point)
+
+    diploms.append({
+        "Фамилия": first,
+        "Имя": middle,
+        "Отчество": last,
+        "Регистр_номер": reg,
+        "число_месяцполностью_год__рождения": birthdate,
+        "Решение_госуд_Экз_комисии": reshenie,
+        "Председатель": predsedatel,
+        "Дата_выдачи": data_vidachi,
+        "Специальность": speciality,
+        "Красный": red,
+        "file": file,
+        "Дисциплины": subjects,
+        "Часы": hours,
+        "оценки": marks,
+        "Предыдущий_документ": pred_document,
+        "срок": srok,
+        "Квалификация": qualification,
+        "Специальность": speciality,
+        "курсовые": kursovie_subjects,
+        "оценка_курсовая": kursovie_marks
+
+    })
+
+with MailMerge('cover_oblo.docx', options=mailmerge_options) as document:
     document.merge_templates(diploms, separator='continuous_section')
-    document.write('output.docx')
+    document.write('diploms_oblo.docx')
 
-    document = Document('output.docx')
-
-document.save('output.docx')
+with MailMerge('cover_prilo.docx', options=mailmerge_options) as document:
+    document.merge_templates(diploms, separator='continuous_section')
+    document.write('diploms_prilo.docx')
