@@ -68,11 +68,19 @@ def get_srok(attestat, common_data):
 
 
 def getQrPath(i, fio, data_vidachi, seria, nomer, demo_kod, demo_type, max_point, demo_point):
-    demo_result = "результат: " + demo_point + " из " + str(max_point) + " баллов"
-    qr_path = " | ".join([fio, data_vidachi, seria  + " " +nomer, demo_type, demo_kod, demo_result ])
+    demo_data = []
+    common = [fio, data_vidachi, seria  + " " + nomer]
+    if (demo_point != ""):
+        demo_result = "результат: " + demo_point + " из " + str(max_point) + " баллов"
+        demo_data.append(demo_type)
+        demo_data.append(demo_kod)
+        demo_data.append(demo_result)
+    
+    qr_path = " | ".join(common + demo_data)
     qr = qrcode.make(fix_encoding(qr_path))
     filename = f'img/qr_{i}.png'
     qr.save(filename)
+    print(fix_encoding(qr_path))
     return Path(filename).absolute().as_posix()
 
 
@@ -85,19 +93,19 @@ mailmerge_options = MailMergeOptions(
 
 
 data_vidachi = "01 июля 2026 года"
-gruppa = "ИП-1"
+gruppa = "ПСЗ-9-5"
 diploms = []
-wb = load_workbook(r'C:\Users\ganz\OneDrive\Документы\ведомости оценок.xlsx')
-common = load_workbook('utils.xlsx')
-ws_common = common["data"]
-ws_data = wb[gruppa + " д"]
-ws_mark = wb[gruppa + " о"]
-common_data = {}
+wb = load_workbook(r'C:\\Users\\ganz\\OneDrive\\Документы\\колледж onedrive\\ведомости\\' + gruppa + '.xlsx')
+wb_common = load_workbook('utils.xlsx')
+ws_common = wb_common["data"]
+ws_data = wb["Сведения"]
+ws_mark = wb["Оценки"]
+common = {}
 
 for row in ws_common.values:
     grupp_name = row[0]
     if grupp_name == gruppa:
-        common_data = {
+        common = {
             "speciality": row[1],
             "reshenie": row[2],
             "predsedatel": row[3],
@@ -107,10 +115,17 @@ for row in ws_common.values:
             "qualification" : row[7],
             "demo_kod": row[8],
             "demo_type": row[9],
-            "demo_max_point": row[10]
+            "demo_max_point": row[10],
+            "up-vd": row[11],
+            "up-so": row[12],
+            "up-mp": row[13],
+            "pp-vd": row[14],
+            "pp-so": row[15],
+            "svid-qual": row[16],
+            "svid-prof": row[17],
         }
         # Вывод колонок A и C
-for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=9, values_only=True)):
+for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=11, values_only=True)):
     fio = row[0]
     if (fio == None): # Если дойти до пустой строки, то остановить цикл
         break
@@ -123,14 +138,24 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
     attestat_type = str(row[3])
     attestat_year = str(row[4])
     pred_document = attestat_type + ", " + attestat_year + " года"
-    srok = get_srok(attestat_type, common_data)
-    qualification = common_data["qualification"]
-    speciality = common_data["speciality"]
-    predsedatel = common_data["predsedatel"]
-    reshenie = format_date_ru(common_data["reshenie"])
+    srok = get_srok(attestat_type, common)
+    qualification = common["qualification"]
+    speciality = common["speciality"]
+    predsedatel = common["predsedatel"]
+    reshenie = format_date_ru(common["reshenie"])
     tema_vkr = row[6]
     seria = str(row[7])
     nomer = str(row[8])
+    up_vd = common["up-vd"]
+    up_so = common["up-so"]
+    up_mp = common["up-mp"]
+    pp_vd = common["up-vd"]
+    pp_so = common["up-so"]
+    pp_mp = str(row[10]),
+    svid_qual = common["svid-qual"],
+    svid_prof = common["svid-prof"],
+    svid_reg_nom = row[11]
+    svid_nom_obl = row[12]
 
     subjects = ""
     hours = ""
@@ -138,6 +163,8 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
 
     kursovie_subjects = ""
     kursovie_marks = ""
+
+    demo_point = ""
 
     student_col = i+3
     for mark_col in ws_mark.iter_rows(min_row=3, max_row=100, min_col=0, max_col=student_col, values_only=True):
@@ -156,17 +183,21 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
 
         mark = convertMarktoWord(mark) # Преобразовать числовые оценки в "отлично", "хорошо" и тд.
 
-        if subject == common_data["demo_kod"]:
+        
+        
+        if subject == common["demo_kod"]:
             demo_point = mark
 
         separator = "*"
 
         if "ВСЕГО часов" in subject or "В том числе аудиторных:" in subject:
-            hour9, hour11 = hour.split("|")
-            if attestat_type == "Аттестат о среднем общем образовании":
-                hour = hour11
-            else:
-                hour = hour9
+            if "|" in hour:
+                hour9, hour11 = hour.split("|")
+
+                if attestat_type == "Аттестат о среднем общем образовании":
+                    hour = hour11
+                else:
+                    hour = hour9
         
 
 
@@ -176,7 +207,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
         else:
             subjects += subject + separator
 
-            if len(subject) >= 90:
+            if len(subject) >= 98:
                 separator = "**"
 
             hours += hour + separator
@@ -184,7 +215,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
     
     subjects += tema_vkr
 
-    file = getQrPath(i, fio, common_data["vidacha"], seria, nomer, common_data["demo_kod"], common_data["demo_type"], common_data["demo_max_point"], demo_point)
+    file = getQrPath(i, fio, common["vidacha"], seria, nomer, common["demo_kod"], common["demo_type"], common["demo_max_point"], demo_point)
 
     diploms.append({
         "Фамилия": first,
@@ -206,7 +237,21 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
         "Квалификация": qualification,
         "Специальность": speciality,
         "курсовые": kursovie_subjects,
-        "оценка_курсовая": kursovie_marks
+        "оценка_курсовая": kursovie_marks,
+        "уп_вид_д": up_vd,
+        "уп_исп_ср": up_so,
+        "уп_место": up_mp,
+        "пп_вид_д": pp_vd,
+        "пп_исп_ср": pp_so,
+        "пп_место": pp_mp,
+        "Профессия": svid_prof,
+        "Проф_квалиф": svid_qual
+        "Проф_номер": svid_nom_obl,
+        "Проф_рег_н": svid_reg_nom,
+        "Проф_дисц": "",
+        "Проф_часы": "",
+        "Проф_оцен": "",
+
 
     })
 
