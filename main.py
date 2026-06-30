@@ -250,9 +250,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
         "Проф_рег_н": svid_reg_nom,
         "Проф_дисц": "",
         "Проф_часы": "",
-        "Проф_оцен": "",
-
-
+        "Проф_оцен": ""
     })
 
 with MailMerge('cover_oblo.docx', options=mailmerge_options) as document:
