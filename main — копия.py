@@ -143,7 +143,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
     kursovie_marks = ""
 
     student_col = i+3
-    for mark_col in ws_mark.iter_rows(min_row=3, max_row=100, min_col=0, max_col=student_col, values_only=True):
+    for mark_col in ws_mark.iter_rows(min_row=2, max_row=100, min_col=0, max_col=student_col, values_only=True):
         subject = mark_col[0]
         hour = mark_col[1]
         mark = mark_col[student_col-1]

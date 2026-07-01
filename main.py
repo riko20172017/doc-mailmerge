@@ -93,7 +93,7 @@ mailmerge_options = MailMergeOptions(
 
 
 data_vidachi = "01 июля 2026 года"
-gruppa = "ПСЗ-9-5"
+gruppa = "БСЗ-9-5"
 diploms = []
 wb = load_workbook(r'C:\\Users\\ganz\\OneDrive\\Документы\\колледж onedrive\\ведомости\\' + gruppa + '.xlsx')
 wb_common = load_workbook('utils.xlsx')
@@ -125,7 +125,7 @@ for row in ws_common.values:
             "svid-prof": row[17],
         }
         # Вывод колонок A и C
-for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=11, values_only=True)):
+for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_col=13, values_only=True)):
     fio = row[0]
     if (fio == None): # Если дойти до пустой строки, то остановить цикл
         break
@@ -151,12 +151,16 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
     up_mp = common["up-mp"]
     pp_vd = common["up-vd"]
     pp_so = common["up-so"]
-    pp_mp = str(row[10]),
-    svid_qual = common["svid-qual"],
-    svid_prof = common["svid-prof"],
+    pp_mp = str(row[10])
+    svid_resh = reshenie
+    svid_qual = common["svid-qual"]
+    svid_prof = common["svid-prof"]
     svid_reg_nom = row[11]
     svid_nom_obl = row[12]
-
+    svid_subjects = ""
+    svid_hours = ""
+    svid_marks = ""
+    
     subjects = ""
     hours = ""
     marks = ""
@@ -167,7 +171,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
     demo_point = ""
 
     student_col = i+3
-    for mark_col in ws_mark.iter_rows(min_row=3, max_row=100, min_col=0, max_col=student_col, values_only=True):
+    for mark_col in ws_mark.iter_rows(min_row=2, max_row=100, min_col=0, max_col=student_col, values_only=True):
         subject = mark_col[0]
         hour = mark_col[1]
         mark = mark_col[student_col-1]
@@ -182,13 +186,20 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
         mark = str(mark).replace(".",",")
 
         mark = convertMarktoWord(mark) # Преобразовать числовые оценки в "отлично", "хорошо" и тд.
-
-        
         
         if subject == common["demo_kod"]:
             demo_point = mark
 
         separator = "*"
+        
+        if subject == "Производственная практика" or "Делопроизводитель" in subject:
+            svid_subjects += subject + separator * 2
+            svid_marks += mark + separator * 4
+
+            if subject == "Производственная практика":
+                svid_hours += "2 недели"
+            else:
+                svid_hours += hour + separator * 4
 
         if "ВСЕГО часов" in subject or "В том числе аудиторных:" in subject:
             if "|" in hour:
@@ -213,7 +224,8 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
             hours += hour + separator
             marks += mark + separator
     
-    subjects += tema_vkr
+    if(tema_vkr != None):
+        subjects += tema_vkr
 
     file = getQrPath(i, fio, common["vidacha"], seria, nomer, common["demo_kod"], common["demo_type"], common["demo_max_point"], demo_point)
 
@@ -245,12 +257,13 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
         "пп_исп_ср": pp_so,
         "пп_место": pp_mp,
         "Профессия": svid_prof,
-        "Проф_квалиф": svid_qual
+        "Проф_квалиф": svid_qual,
         "Проф_номер": svid_nom_obl,
         "Проф_рег_н": svid_reg_nom,
-        "Проф_дисц": "",
-        "Проф_часы": "",
-        "Проф_оцен": ""
+        "Проф_дисц": svid_subjects,
+        "Проф_часы": svid_hours,
+        "Проф_оцен": svid_marks,
+        "Проф_решен": svid_resh
     })
 
 with MailMerge('cover_oblo.docx', options=mailmerge_options) as document:
@@ -260,3 +273,11 @@ with MailMerge('cover_oblo.docx', options=mailmerge_options) as document:
 with MailMerge('cover_prilo.docx', options=mailmerge_options) as document:
     document.merge_templates(diploms, separator='continuous_section')
     document.write('diploms_prilo.docx')
+
+with MailMerge('шаблон_свид_обло.docx', options=mailmerge_options) as document:
+    document.merge_templates(diploms, separator='continuous_section')
+    document.write('свид_обло.docx')
+
+with MailMerge('шаблон_свид_прил.docx', options=mailmerge_options) as document:
+    document.merge_templates(diploms, separator='continuous_section')
+    document.write('свид_прил.docx')
