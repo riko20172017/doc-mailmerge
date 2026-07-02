@@ -93,10 +93,10 @@ mailmerge_options = MailMergeOptions(
 
 
 data_vidachi = "01 июля 2026 года"
-gruppa = "БСЗ-9-5"
+gruppa = "ПСД-35"
 diploms = []
 wb = load_workbook(r'C:\\Users\\ganz\\OneDrive\\Документы\\колледж onedrive\\ведомости\\' + gruppa + '.xlsx')
-wb_common = load_workbook('utils.xlsx')
+wb_common = load_workbook('utils.xlsx', read_only=True)
 ws_common = wb_common["data"]
 ws_data = wb["Сведения"]
 ws_mark = wb["Оценки"]
@@ -151,7 +151,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
     up_mp = common["up-mp"]
     pp_vd = common["up-vd"]
     pp_so = common["up-so"]
-    pp_mp = str(row[10])
+    pp_mp = row[10]
     svid_resh = reshenie
     svid_qual = common["svid-qual"]
     svid_prof = common["svid-prof"]
@@ -201,7 +201,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
             else:
                 svid_hours += hour + separator * 4
 
-        if "ВСЕГО часов" in subject or "В том числе аудиторных:" in subject:
+        if "ВСЕГО часов" in subject or "в том числе аудиторных:" in subject:
             if "|" in hour:
                 hour9, hour11 = hour.split("|")
 
@@ -218,7 +218,7 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
         else:
             subjects += subject + separator
 
-            if len(subject) >= 98:
+            if len(subject) >= 90:
                 separator = "**"
 
             hours += hour + separator

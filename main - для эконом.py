@@ -187,9 +187,10 @@ for i, row in enumerate(ws_data.iter_rows(min_row=2, max_row=50, min_col=1, max_
             hours += hour + separator
             marks += mark + separator
     
-    subjects += tema_vkr
+    # subjects += tema_vkr
 
-    file = getQrPath(i, fio, common_data["vidacha"], seria, nomer, common_data["demo_kod"], common_data["demo_type"], common_data["demo_max_point"], demo_point)
+    # file = getQrPath(i, fio, common_data["vidacha"], seria, nomer, common_data["demo_kod"], common_data["demo_type"], common_data["demo_max_point"], demo_point)
+    file = ""
 
     diploms.append({
         "Фамилия": first,
